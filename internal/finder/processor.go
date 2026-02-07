@@ -6,31 +6,47 @@ import (
 	"duplicate-finder/internal/cli"
 )
 
-func CompareFiles(sameSizedFiles map[int64][]string, conf cli.Config) {
-	hashMap := make(map[string][]string)
+type SameFiles struct {
+	TotalSize  int64
+	TotalFiles int64
+	HashSum    string
+	Files      []*FileData
+}
 
-	for size, paths := range sameSizedFiles {
-		if len(paths) > 1 {
-			fmt.Printf("Нашли файлы одинакового размера %d\n", size)
-			for _, path := range paths {
-				hash, err := calculateHash(path, conf)
+func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config) []*SameFiles {
+	hashMap := make(map[string][]*FileData)
+	allFiles := make([]*SameFiles, 0)
+
+	for size, files := range sameSizedFiles {
+		if len(files) > 1 {
+			debugLogger(conf.Debug, fmt.Sprintf("Нашли файлы одинакового размера %d\n", size))
+
+			for _, file := range files {
+				hash, err := calculateHash(file.Path, conf)
 				if err != nil {
-					fmt.Printf("Ошибка при получении хеша файла %s\n", path)
+					fmt.Printf("Ошибка при получении хеша файла %s\n", file.Path)
 					continue
 				}
+				file.HashSum = hash
 
 				if _, exists := hashMap[hash]; !exists {
-					hashMap[hash] = make([]string, 0)
+					hashMap[hash] = make([]*FileData, 0)
 				}
-				hashMap[hash] = append(hashMap[hash], path)
+				hashMap[hash] = append(hashMap[hash], file)
 			}
 
-			for hash, paths := range hashMap {
-				if len(paths) > 1 {
-					fmt.Printf("Нашли одинаковые файлы с хешем: %x\n", hash)
-					for _, path := range paths {
-						fmt.Printf("\t- %s\n", path)
+			for hash, files := range hashMap {
+				if len(files) > 1 {
+					sameFiles := SameFiles{}
+					sameFiles.HashSum = hash
+
+					for _, file := range files {
+						sameFiles.TotalSize += file.Size
+						sameFiles.TotalFiles++
+						sameFiles.Files = append(sameFiles.Files, file)
 					}
+
+					allFiles = append(allFiles, &sameFiles)
 				}
 			}
 
@@ -39,4 +55,6 @@ func CompareFiles(sameSizedFiles map[int64][]string, conf cli.Config) {
 			}
 		}
 	}
+
+	return allFiles
 }

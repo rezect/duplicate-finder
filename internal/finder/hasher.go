@@ -13,7 +13,7 @@ import (
 )
 
 func calculateHash(path string, conf cli.Config) (string, error) {
-	fmt.Printf("Начали считать хеш для файла %s\n", path)
+	debugLogger(conf.Debug, fmt.Sprintf("Начали считать хеш для файла %s\n", path))
 
 	start := time.Now()
 	file, err := os.Open(path)
@@ -37,7 +37,9 @@ func calculateHash(path string, conf cli.Config) (string, error) {
 		return "", err
 	}
 
-	timeLog(start, "calculateHash")
+	if conf.Debug {
+		timeLog(start, "calculateHash")
+	}
 
 	return string(h.Sum(nil)), nil
 }
