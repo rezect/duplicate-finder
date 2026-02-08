@@ -27,13 +27,19 @@ func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config, totalFi
 		if len(files) > 1 {
 			debugLogger(conf.Debug, fmt.Sprintf("Нашли файлы одинакового размера %d\n", size))
 
+			ch := make(chan *FileData)
+
 			for _, file := range files {
-				hash, err := calculateHash(file.Path, conf)
-				if err != nil {
-					fmt.Printf("Ошибка при получении хеша файла %s\n", file.Path)
+				go calculateHashParallel(file, conf, ch)
+			}
+
+			for range files {
+				file := <-ch
+				if file.HashSum == "" {
+					debugLogger(conf.Debug, fmt.Sprintf("Ошибка при обработке файла %s\n", file.Path))
 					continue
 				}
-				file.HashSum = hash
+				hash := file.HashSum
 
 				if _, exists := hashMap[hash]; !exists {
 					hashMap[hash] = make([]*FileData, 0)
