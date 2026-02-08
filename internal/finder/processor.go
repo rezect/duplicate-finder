@@ -13,11 +13,17 @@ type SameFiles struct {
 	Files      []*FileData
 }
 
-func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config) []*SameFiles {
+func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config, totalFiles int64) []*SameFiles {
 	hashMap := make(map[string][]*FileData)
 	allFiles := make([]*SameFiles, 0)
+	var processedFilesCount int = 0
+
+	fmt.Println()
 
 	for size, files := range sameSizedFiles {
+		processedFilesCount += len(files)
+		fmt.Printf("\r\033[KFilesProcessed: %d/%d", processedFilesCount, totalFiles)
+
 		if len(files) > 1 {
 			debugLogger(conf.Debug, fmt.Sprintf("Нашли файлы одинакового размера %d\n", size))
 
@@ -55,6 +61,8 @@ func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config) []*Same
 			}
 		}
 	}
+
+	fmt.Println()
 
 	return allFiles
 }

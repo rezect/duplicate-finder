@@ -11,9 +11,9 @@ func main() {
 		panic(err)
 	}
 
-	sameSizedFiles, scannedDirs := finder.ScanDirectory(conf)
+	sameSizedFiles, totalFiles := finder.ScanDirectory(conf)
 
-	comparedFiles := finder.CompareFiles(sameSizedFiles, conf)
+	comparedFiles := finder.CompareFiles(sameSizedFiles, conf, totalFiles)
 
-	finder.MakeReport(comparedFiles, scannedDirs)
+	finder.MakeReport(comparedFiles)
 }

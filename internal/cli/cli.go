@@ -17,7 +17,7 @@ func ParseConfig() (Config, error) {
 
 	flag.StringVar(&conf.Dir, "dir", ".", "Directory to scan")
 	flag.StringVar(&conf.Algo, "algo", "md5", "Ango to scan with")
-	flag.Int64Var(&conf.MinSize, "min_size", 1, "Minimal size of files to scan")
+	flag.Int64Var(&conf.MinSize, "min-size", 1, "Minimal size of files to scan")
 	flag.BoolVar(&conf.Debug, "debug", false, "Debug mode")
 
 	flag.Parse()
