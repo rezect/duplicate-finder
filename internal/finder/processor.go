@@ -2,6 +2,7 @@ package finder
 
 import (
 	"fmt"
+	"sync"
 
 	"duplicate-finder/internal/cli"
 )
@@ -20,6 +21,16 @@ func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config, totalFi
 
 	fmt.Println()
 
+	var wg sync.WaitGroup
+	in := make(chan *FileData, conf.Workers)
+	out := make(chan *FileData, conf.Workers)
+	defer close(in)
+	defer close(out)
+
+	for range conf.Workers {
+		go calculateHashParallel(conf, in, out)
+	}
+
 	for size, files := range sameSizedFiles {
 		processedFilesCount += len(files)
 		fmt.Printf("\r\033[KFilesProcessed: %d/%d", processedFilesCount, totalFiles)
@@ -27,25 +38,14 @@ func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config, totalFi
 		if len(files) > 1 {
 			debugLogger(conf.Debug, fmt.Sprintf("Нашли файлы одинакового размера %d\n", size))
 
-			ch := make(chan *FileData)
+			go writeToHashMapParallel(&wg, out, &hashMap, conf)
+			wg.Add(len(files))
 
 			for _, file := range files {
-				go calculateHashParallel(file, conf, ch)
+				in <- file
 			}
 
-			for range files {
-				file := <-ch
-				if file.HashSum == "" {
-					debugLogger(conf.Debug, fmt.Sprintf("Ошибка при обработке файла %s\n", file.Path))
-					continue
-				}
-				hash := file.HashSum
-
-				if _, exists := hashMap[hash]; !exists {
-					hashMap[hash] = make([]*FileData, 0)
-				}
-				hashMap[hash] = append(hashMap[hash], file)
-			}
+			wg.Wait()
 
 			for hash, files := range hashMap {
 				if len(files) > 1 {
@@ -71,4 +71,26 @@ func CompareFiles(sameSizedFiles map[int64][]*FileData, conf cli.Config, totalFi
 	fmt.Println()
 
 	return allFiles
+}
+
+func writeToHashMapParallel(wg *sync.WaitGroup, out chan *FileData, hashMap *map[string][]*FileData, conf cli.Config) {
+	for true {
+		file, ok := <-out
+		if !ok {
+			break
+		}
+
+		if file.HashSum == "" {
+			debugLogger(conf.Debug, fmt.Sprintf("Ошибка при обработке файла %s\n", file.Path))
+			continue
+		}
+		hash := file.HashSum
+
+		if _, exists := (*hashMap)[hash]; !exists {
+			(*hashMap)[hash] = make([]*FileData, 0)
+		}
+		(*hashMap)[hash] = append((*hashMap)[hash], file)
+
+		wg.Done()
+	}
 }
